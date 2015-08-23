@@ -7,3 +7,6 @@ authors = ["tristanm"]
 name = "readelf"
 path = "src/readelf.rs"
 
+[dependencies]
+getopts = "0.2"
+
