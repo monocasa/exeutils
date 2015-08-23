@@ -1,0 +1,9 @@
+[package]
+name = "exeutils"
+version = "0.1.0"
+authors = ["tristanm"]
+
+[[bin]]
+name = "readelf"
+path = "src/readelf.rs"
+
