@@ -220,6 +220,10 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 	ParseResult::Ok(parsed_opts)
 }
 
+fn read_file() -> Result<(), &'static str> {
+	Err("Unimplemented")
+}
+
 fn main() {
 	let args: Vec<String> = std::env::args().collect();
 	let program = args[0].clone();
@@ -228,13 +232,13 @@ fn main() {
 
 	match parse_opts(&args, &mut opts) {
 		ParseResult::Ok(parsed_opts) => {
-			if parsed_opts.files.len() == 1 {
-				
-			} else {
-				for file in parsed_opts.files {
+			let num_files = parsed_opts.files.len();
+			for file in parsed_opts.files {
+				if num_files != 1 {
 					println!("");
 					println!("File: {}", file);
 				}
+				read_file().unwrap();
 			}
 		},
 		ParseResult::Err(e) => {
