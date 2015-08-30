@@ -255,7 +255,13 @@ fn main() {
 					println!("File: {}", file_name);
 				}
 
-				read_file(file_name).unwrap();
+				match read_file(file_name) {
+					Ok(_) => {},
+					Err(e) => {
+						println!("Error:  {}", e);
+						std::process::exit(1);
+					},
+				}
 			}
 		},
 		ParseResult::Err(e) => {
