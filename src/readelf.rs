@@ -1,4 +1,8 @@
+extern crate exefmt;
 extern crate getopts;
+
+use exefmt::elffile::ElfFile;
+use exefmt::loader::Loader;
 
 use getopts::Options;
 
@@ -221,12 +225,18 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 }
 
 fn read_file(file_name: String) -> Result<(), String> {
-	let file = match std::fs::File::open(file_name) {
+	let mut file = match std::fs::File::open(file_name) {
 		Ok(f) => f,
 		Err(e) => return Err(format!("{}", e)),
 	};
 
-	println!("Opened:  {:?}", file);
+
+	let elf = match ElfFile::read(&mut file) {
+		Ok(elf) => elf,
+		Err(_) => return Err("ReadError".to_string()),
+	};
+
+	println!("Entry Point:  {}", elf.entry_point());
 	Err("Unimplemented".to_string())
 }
 
