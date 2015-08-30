@@ -220,8 +220,14 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 	ParseResult::Ok(parsed_opts)
 }
 
-fn read_file() -> Result<(), &'static str> {
-	Err("Unimplemented")
+fn read_file(file_name: String) -> Result<(), String> {
+	let file = match std::fs::File::open(file_name) {
+		Ok(f) => f,
+		Err(e) => return Err(format!("{}", e)),
+	};
+
+	println!("Opened:  {:?}", file);
+	Err("Unimplemented".to_string())
 }
 
 fn main() {
@@ -233,12 +239,13 @@ fn main() {
 	match parse_opts(&args, &mut opts) {
 		ParseResult::Ok(parsed_opts) => {
 			let num_files = parsed_opts.files.len();
-			for file in parsed_opts.files {
+			for file_name in parsed_opts.files {
 				if num_files != 1 {
 					println!("");
-					println!("File: {}", file);
+					println!("File: {}", file_name);
 				}
-				read_file().unwrap();
+
+				read_file(file_name).unwrap();
 			}
 		},
 		ParseResult::Err(e) => {
