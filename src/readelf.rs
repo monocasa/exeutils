@@ -221,6 +221,41 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 	ParseResult::Ok(parsed_opts, files)
 }
 
+fn print_file_header(elf: &elf::ElfFile) {
+	println!("ELF Header:");
+	print!("  Magic:   ");
+	for byte in elf.e_ident.iter() {
+		print!("{:02x} ", byte);
+	}
+	println!("");
+	println!("  Class:                             {}", elf.ehdr_class_string());
+	println!("  Data:                              {}", elf.ehdr_data_string());
+	let ident_ver = elf.e_ident[elf::EI_VERSION];
+	println!("  Version:                           {}{}", ident_ver,
+		if ident_ver == elf::EV_CURRENT { " (current)" }
+		else { "" }
+		);
+	println!("  OS/ABI:                            {}", elf.ehdr_osabi_string());
+	println!("  ABI Version:                       {}", elf.e_ident[elf::EI_ABIVERSION]);
+	println!("  Type:                              {}", elf.ehdr_type_string());
+	println!("  Machine:                           {}", elf.ehdr_machine_string());
+	println!("  Version:                           {:#x}", elf.e_version);
+	println!("  Entry point address:               {:#x}", elf.e_entry);
+	println!("  Start of program headers:          {} (bytes into file)", elf.e_phoff);
+	println!("  Start of section headers:          {} (bytes into file)", elf.e_shoff);
+	print!("  Flags:                             {:#x}", elf.e_flags);
+	for flag in elf.ehdr_flags_strings() {
+		print!(", {}", flag);
+	}
+	println!("");
+	println!("  Size of this header:               {} (bytes)", elf.e_ehsize);
+	println!("  Size of program headers:           {} (bytes)", elf.e_phentsize);
+	println!("  Number of program headers:         {}", elf.e_phnum);
+	println!("  Size of section headers:           {} (bytes)", elf.e_shentsize);
+	println!("  Number of section headers:         {}", elf.e_shnum);
+	println!("  Section header string table index: {}", elf.e_shstrndx);
+}
+
 fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), String> {
 	let mut file = match std::fs::File::open(file_name) {
 		Ok(f) => f,
@@ -234,39 +269,7 @@ fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), Stri
 	};
 
 	if parsed_opts.file_header {
-		println!("ELF Header:");
-		print!("  Magic:   ");
-		for byte in elf.e_ident.iter() {
-			print!("{:02x} ", byte);
-		}
-		println!("");
-		println!("  Class:                             {}", elf.ehdr_class_string());
-		println!("  Data:                              {}", elf.ehdr_data_string());
-		let ident_ver = elf.e_ident[elf::EI_VERSION];
-		println!("  Version:                           {}{}", ident_ver,
-			match ident_ver {
-				elf::EV_CURRENT => " (current)",
-				_ => "",
-			});
-		println!("  OS/ABI:                            {}", elf.ehdr_osabi_string());
-		println!("  ABI Version:                       {}", elf.e_ident[elf::EI_ABIVERSION]);
-		println!("  Type:                              {}", elf.ehdr_type_string());
-		println!("  Machine:                           {}", elf.ehdr_machine_string());
-		println!("  Version:                           {:#x}", elf.e_version);
-		println!("  Entry point address:               {:#x}", elf.e_entry);
-		println!("  Start of program headers:          {} (bytes into file)", elf.e_phoff);
-		println!("  Start of section headers:          {} (bytes into file)", elf.e_shoff);
-		print!("  Flags:                             {:#x}", elf.e_flags);
-		for flag in elf.ehdr_flags_strings() {
-			print!(", {}", flag);
-		}
-		println!("");
-		println!("  Size of this header:               {} (bytes)", elf.e_ehsize);
-		println!("  Size of program headers:           {} (bytes)", elf.e_phentsize);
-		println!("  Number of program headers:         {}", elf.e_phnum);
-		println!("  Size of section headers:           {} (bytes)", elf.e_shentsize);
-		println!("  Number of section headers:         {}", elf.e_shnum);
-		println!("  Section header string table index: {}", elf.e_shstrndx);
+		print_file_header(&elf);
 	}
 
 	Ok(())
