@@ -7,6 +7,10 @@ authors = ["tristanm"]
 name = "readelf"
 path = "src/readelf.rs"
 
+[[bin]]
+name = "objdump"
+path = "src/objdump.rs"
+
 [dependencies]
 getopts = "0.2"
 
