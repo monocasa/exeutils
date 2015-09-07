@@ -256,6 +256,25 @@ fn print_file_header(elf: &elf::ElfFile) {
 	println!("  Section header string table index: {}", elf.e_shstrndx);
 }
 
+fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
+	if elf.e_shnum == 0 {
+		println!("");
+		println!("There are no sections in this file.\n");
+		return;
+	}
+
+	if !parsed_opts.file_header {
+		println!("There are {} section headers, starting at offset {:#x}", elf.e_shnum, elf.e_shoff);
+	}
+
+	println!("");
+	if elf.e_shnum > 1 {
+		println!("Section Headers:");
+	} else {
+		println!("Section Header:");
+	}
+}
+
 fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), String> {
 	let mut file = match std::fs::File::open(file_name) {
 		Ok(f) => f,
@@ -270,6 +289,10 @@ fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), Stri
 
 	if parsed_opts.file_header {
 		print_file_header(&elf);
+	}
+
+	if parsed_opts.section_headers {
+		print_section_headers(&elf, parsed_opts);
 	}
 
 	Ok(())
