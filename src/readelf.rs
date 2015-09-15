@@ -145,7 +145,7 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 	}
 
 	if matches.opt_present("syms") || matches.opt_present("symbols") {
-		parsed_opts.section_headers = true;
+		parsed_opts.syms = true;
 
 		parsed_opts.at_least_one_opt = true;
 	}
