@@ -275,6 +275,10 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 	}
 }
 
+fn print_symbols(elf: &elf::ElfFile) {
+	println!("Symbol table '.symtab' contains {} entries", elf.e_shnum);
+}
+
 fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), String> {
 	let mut file = match std::fs::File::open(file_name) {
 		Ok(f) => f,
@@ -293,6 +297,10 @@ fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), Stri
 
 	if parsed_opts.section_headers {
 		print_section_headers(&elf, parsed_opts);
+	}
+
+	if parsed_opts.syms {
+		print_symbols(&elf);
 	}
 
 	Ok(())
