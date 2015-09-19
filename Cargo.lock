@@ -14,7 +14,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "exefmt"
 version = "0.1.0"
-source = "git+https://github.com/monocasa/exefmt.git#5d323688d0d7ee0856d8b7ad15fda6039ee6d3dd"
+source = "git+https://github.com/monocasa/exefmt.git#fb86f1b70f4161976809401f8b33068fe952704b"
 dependencies = [
  "byteorder 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
