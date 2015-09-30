@@ -17,3 +17,6 @@ getopts = "0.2"
 [dependencies.exefmt]
 git = "https://github.com/monocasa/exefmt.git"
 
+[dependencies.opcode]
+git = "https://github.com/monocasa/opcode.git"
+
