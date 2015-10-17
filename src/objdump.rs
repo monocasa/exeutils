@@ -188,6 +188,7 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 	if matches.opt_present("machine") {
 		parsed_opts.arch = match matches.opt_str("machine").unwrap().as_ref() {
 			"chip8" => Some(opcode::Arch::Chip8),
+			"ppc"   => Some(opcode::Arch::PowerPC),
 			_ => return Err(ParseError::UnknownArgument("machine", matches.opt_str("machine").unwrap())),
 		};
 	}
