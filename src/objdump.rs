@@ -11,7 +11,7 @@ use std::io::{Error, ErrorKind};
 use exefmt::Loader;
 
 use opcode::chip8::Chip8Disasm;
-
+use opcode::ppc::PpcDisasm;
 use opcode::Arch;
 
 #[derive(PartialEq)]
@@ -266,7 +266,8 @@ fn disassembler_factory(arch_type: &Option<opcode::Arch>) -> Box<opcode::Disasse
 	match arch_type {
 		&Some(ref arch) => {
 			match arch {
-				&opcode::Arch::Chip8 => Box::new(opcode::chip8::Chip8Disasm),
+				&opcode::Arch::Chip8   => Box::new(opcode::chip8::Chip8Disasm),
+				&opcode::Arch::PowerPC => Box::new(opcode::ppc::PpcDisasm),
 				_ => panic!("Unknown machine"),
 			}
 		},
