@@ -48,6 +48,26 @@ struct ObjdumpOptions {
 	at_least_one_opt: bool,
 }
 
+#[derive(Debug)]
+enum ObjdumpError {
+	Io(std::io::Error),
+	ElfParse(exefmt::elf::ElfParseError),
+	UnknownBinaryFmt,
+}
+
+impl From<std::io::Error> for ObjdumpError {
+	fn from(err: std::io::Error) -> ObjdumpError { ObjdumpError::Io(err) }
+}
+
+impl From<exefmt::elf::ElfParseError> for ObjdumpError {
+	fn from(err: exefmt::elf::ElfParseError) -> ObjdumpError { 
+		match err {
+			exefmt::elf::ElfParseError::Io(io_err) => ObjdumpError::Io(io_err),
+			_                                      => ObjdumpError::ElfParse(err),
+		}
+	}
+}
+
 enum ParseError {
 	Help,
 	Ver,
@@ -313,20 +333,22 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 	Ok(())
 }
 
-fn do_objdump(file_name: &String, parsed_options: &ObjdumpOptions) -> Result<(), std::io::Error> {
+fn do_objdump(file_name: &String, parsed_options: &ObjdumpOptions) -> Result<(), ObjdumpError> {
 	let mut file = try!(std::fs::File::open(file_name));
 	let filter = segment_filter_factory(parsed_options);
 
 	let (segments, binfmt_name) = match parsed_options.bin_fmt {
 		BinaryFormat::NotSet => {
-			return Err(Error::new(ErrorKind::Other, "Unknown binary format"));
+			return Err(ObjdumpError::UnknownBinaryFmt);
 		},
 		BinaryFormat::RawBinary => {
 			let ldr = try!(exefmt::binary::BinLoader::new(&mut file));
 			(try!(ldr.get_segments(&*filter, &mut file)), "binary".to_string())
 		},
 		BinaryFormat::Elf => {
-			return Err(Error::new(ErrorKind::Other, "Have yet to implement ELF loading"));
+			let ldr = exefmt::elf::ElfLoader::new(
+				try!(exefmt::elf::ElfFile::read(&mut file)) );
+			(try!(ldr.get_segments(&*filter, &mut file)), "elf64-powerpc".to_string())
 		},
 	};
 
