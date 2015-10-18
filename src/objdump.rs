@@ -343,12 +343,13 @@ fn do_objdump(file_name: &String, parsed_options: &ObjdumpOptions) -> Result<(),
 		},
 		BinaryFormat::RawBinary => {
 			let ldr = try!(exefmt::binary::BinLoader::new(&mut file));
-			(try!(ldr.get_segments(&*filter, &mut file)), "binary".to_string())
+			(try!(ldr.get_segments(&*filter, &mut file)), ldr.fmt_str())
 		},
 		BinaryFormat::Elf => {
-			let ldr = exefmt::elf::ElfLoader::new(
+			let mut ldr = exefmt::elf::ElfLoader::new(
 				try!(exefmt::elf::ElfFile::read(&mut file)) );
-			(try!(ldr.get_segments(&*filter, &mut file)), "elf64-powerpc".to_string())
+			ldr.load_from = exefmt::elf::ElfLoadFrom::SectionHeaders;
+			(try!(ldr.get_segments(&*filter, &mut file)), ldr.fmt_str())
 		},
 	};
 
