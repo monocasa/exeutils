@@ -256,6 +256,32 @@ fn print_file_header(elf: &elf::ElfFile) {
 	println!("  Section header string table index: {}", elf.e_shstrndx);
 }
 
+fn build_flags_str(flags: u64) -> String {
+	let mut flags_str = "".to_string();
+
+	if (flags & 0x00000001) != 0 {
+		flags_str = flags_str + "W";
+	}
+
+	if (flags & 0x00000002) != 0 {
+		flags_str = flags_str + "A";
+	}
+
+	if (flags & 0x00000004) != 0 {
+		flags_str = flags_str + "X";
+	}
+
+	if (flags & 0x00000010) != 0 {
+		flags_str = flags_str + "M";
+	}
+
+	if (flags & 0x00000020) != 0 {
+		flags_str = flags_str + "S";
+	}
+
+	flags_str
+}
+
 fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 	if elf.e_shnum == 0 {
 		println!("");
@@ -264,7 +290,7 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 	}
 
 	if !parsed_opts.file_header {
-		println!("There are {} section headers, starting at offset {:#x}", elf.e_shnum, elf.e_shoff);
+		println!("There are {} section headers, starting at offset {:#x}:", elf.e_shnum, elf.e_shoff);
 	}
 
 	println!("");
@@ -273,6 +299,64 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 	} else {
 		println!("Section Header:");
 	}
+
+	match elf.e_ident[exefmt::elf::EI_CLASS] {
+		exefmt::elf::ELFCLASS32 => {
+			println!("  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al");
+		},
+
+		exefmt::elf::ELFCLASS64 => {
+			println!("  [Nr] Name              Type             Address           Offset");
+			println!("       Size              EntSize          Flags  Link  Info  Align");
+		},
+
+		_ => {
+			
+		},
+	}
+
+	let mut shnum = 0;
+	for shdr in elf.shdrs.iter() {
+		let section_name = match elf.read_str(shdr.sh_name) {
+			Some(x) => x,
+			None    => format!(""),
+		};
+
+		match elf.e_ident[exefmt::elf::EI_CLASS] {
+			exefmt::elf::ELFCLASS32 => {
+				println!("  [{:2}] {:<16}  {:15} {:08x} {:06x} {:06x} {:02x} {:>3} {:2} {:3} {:2}", 
+				         shnum, section_name, shdr.type_string(),
+				         shdr.sh_addr, shdr.sh_offset, shdr.sh_size, shdr.sh_entsize,
+				         build_flags_str(shdr.sh_flags), shdr.sh_link, shdr.sh_info,
+				         shdr.sh_addralign);
+			},
+
+			exefmt::elf::ELFCLASS64 => {
+				println!("  [{:2}] {:<16}  {:16} {:016x}  {:08x}",
+				         shnum, shdr.sh_name, shdr.type_string(),
+				         shdr.sh_addr, shdr.sh_offset);
+				println!("       {:016x}  {:016x} {:>3}    {:4}   {:3}     {}",
+				         shdr.sh_size, shdr.sh_entsize, build_flags_str(shdr.sh_flags), 
+				         shdr.sh_link, shdr.sh_info, shdr.sh_addralign);
+			},
+
+			_ => {
+				
+			},
+		}
+
+		shnum += 1;
+	}
+
+	println!("Key to Flags:");
+	if elf.e_machine == exefmt::elf::EM_AMD64 {
+		println!("  W (write), A (alloc), X (execute), M (merge), S (strings), l (large)");
+	} else {
+		println!("  W (write), A (alloc), X (execute), M (merge), S (strings)");
+	}
+	println!("  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)");
+	println!("  O (extra OS processing required) o (OS specific), p (processor specific)");
+
 }
 
 fn print_symbols(elf: &elf::ElfFile) {
