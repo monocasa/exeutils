@@ -297,6 +297,20 @@ fn disassembler_factory(arch_type: &Option<opcode::Arch>) -> Box<opcode::Disasse
 	}
 }
 
+fn count_zeros(buf: &[u8]) -> usize {
+	let mut count: usize = 0;
+
+	for byte in buf {
+		if byte != &0 {
+			return count;
+		}
+
+		count += 1;
+	}
+
+	return count;
+}
+
 fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_options: &ObjdumpOptions) -> Result<(), std::io::Error> {
 	let mut residue: usize = segment_meta.file_size as usize;
 	let mut consumed: usize = 0;
@@ -310,12 +324,22 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 	println!("{:08x} <{}>:", base, segment_meta.name);
 
 	while residue != 0 {
-		let (dis_text, num_bytes) = match disassembler.disassemble(base + (consumed as u64), &data.as_slice()[consumed .. data.len()]) {
+		let cur_slice = &data.as_slice()[consumed .. data.len()];
+		let count = count_zeros(cur_slice);
+
+		if count >= 8 {
+			println!("\t...");
+			consumed += count;
+			residue -= count;
+			continue;
+		}
+
+		let (dis_text, num_bytes) = match disassembler.disassemble(base + (consumed as u64), cur_slice) {
 			Ok((dis_text, num_bytes)) => (dis_text, num_bytes),
 			Err(opcode::DisError::Unknown{ num_bytes }) => 
 					(format!(".word 0x{:02x}{:02x}", data[consumed], data[consumed+1]), num_bytes),
 			Err(opcode::DisError::MemOverflow) => {
-				println!("{:8x}:    {:02x}       .byte 0x{:02x}", base + (consumed as u64), data[consumed], data[consumed]);
+				println!("{:8x}:       {:02x}       .byte 0x{:02x}", base + (consumed as u64), data[consumed], data[consumed]);
 				consumed += 1;
 				residue -= 1;
 				continue;
@@ -325,7 +349,7 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 			},
 		};
 		let byte_text = format!("{:02x} {:02x}", data[consumed], data[consumed+1]);
-		println!("{:8x}:    {}    {}", base + (consumed as u64), byte_text, dis_text);
+		println!("{:8x}:       {}    {}", base + (consumed as u64), byte_text, dis_text);
 		consumed += num_bytes;
 		residue -= num_bytes;
 	}
