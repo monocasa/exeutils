@@ -311,11 +311,58 @@ fn count_zeros(buf: &[u8]) -> usize {
 	return count;
 }
 
+fn construct_data_string(buf: &[u8], num_bytes_per_element: usize, num_elements: usize) -> Option<String> {
+	if buf.len() < (num_bytes_per_element * num_elements) {
+		return None;
+	}
+
+	let mut ret = format!("");
+
+	for cur_element in 0..num_elements {
+		for cur_byte in 0..num_bytes_per_element {
+			ret = format!("{}{:02x}{}", ret,
+					buf[((cur_element * num_bytes_per_element) + cur_byte) as usize],
+					if cur_byte == (num_bytes_per_element - 1) { " " } else { "" });
+		}
+	}
+
+	Some(ret)
+}
+
+fn construct_data_pseudoop_string(buf: &[u8], num_bytes_per_element: usize, num_elements: usize) -> Option<String> {
+	if buf.len() < (num_bytes_per_element * num_elements) {
+		return None;
+	}
+
+	let num_bytes = num_bytes_per_element * num_elements;
+
+	let (prefix, element_size) = match ((num_bytes % 4), (num_bytes % 2)) {
+		(0, _) => (".long", 4),
+		(_, 0) => (".word", 2),
+		(_, _) => (".byte", 1),
+	};
+
+	let mut ret = format!("{}", prefix);
+
+	for element in 0..(element_size / num_bytes) {
+		let mut data: u64 = 0;
+		for byte in 0..element_size {
+			data <<= 8;
+			data |= buf[(element * num_bytes_per_element) + byte] as u64;
+		}
+
+		ret = format!("{}{} {:#x}", ret, if element != 0 { "," } else { "" }, data);
+	}
+
+	Some(ret)
+}
+
 fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_options: &ObjdumpOptions) -> Result<(), std::io::Error> {
 	let mut residue: usize = segment_meta.file_size as usize;
 	let mut consumed: usize = 0;
 	let base = segment_meta.load_base + parsed_options.vma_offset;
 	let disassembler = disassembler_factory(&parsed_options.arch);
+	let bytes_per_element = disassembler.bytes_per_unit() as usize;
 
 	println!("");
 	println!("Disassembly of section {}", segment_meta.name);
@@ -337,9 +384,10 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 		let (dis_text, num_bytes) = match disassembler.disassemble(base + (consumed as u64), cur_slice) {
 			Ok((dis_text, num_bytes)) => (dis_text, num_bytes),
 			Err(opcode::DisError::Unknown{ num_bytes }) => 
-					(format!(".word 0x{:02x}{:02x}", data[consumed], data[consumed+1]), num_bytes),
+					(construct_data_pseudoop_string(cur_slice, bytes_per_element, num_bytes / bytes_per_element).unwrap(),
+							num_bytes),
 			Err(opcode::DisError::MemOverflow) => {
-				println!("{:8x}:       {:02x}       .byte 0x{:02x}", base + (consumed as u64), data[consumed], data[consumed]);
+				println!("{:8x}:\t{:02x}       .byte 0x{:02x}", base + (consumed as u64), data[consumed], data[consumed]);
 				consumed += 1;
 				residue -= 1;
 				continue;
@@ -348,8 +396,8 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 				return Err(Error::new(ErrorKind::Other, "Diassembly error"));
 			},
 		};
-		let byte_text = format!("{:02x} {:02x}", data[consumed], data[consumed+1]);
-		println!("{:8x}:       {}    {}", base + (consumed as u64), byte_text, dis_text);
+		let byte_text = construct_data_string(cur_slice, bytes_per_element, num_bytes / bytes_per_element).unwrap();
+		println!("{:8x}:\t{}\t{}", base + (consumed as u64), byte_text, dis_text);
 		consumed += num_bytes;
 		residue -= num_bytes;
 	}
