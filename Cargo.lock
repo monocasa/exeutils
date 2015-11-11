@@ -28,5 +28,5 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "opcode"
 version = "0.1.0"
-source = "git+https://github.com/monocasa/opcode.git#f7d02099d6bd7f5cccd93650cfefe21f201733ee"
+source = "git+https://github.com/monocasa/opcode.git#41dc285d64d01395b4bbfb546b158829f334454d"
 
