@@ -317,7 +317,7 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 
 	let mut shnum = 0;
 	for shdr in elf.shdrs.iter() {
-		let section_name = match elf.read_str(shdr.sh_name) {
+		let section_name = match elf.strtab.read_str(shdr.sh_name) {
 			Some(x) => x,
 			None    => format!(""),
 		};
@@ -359,8 +359,68 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 
 }
 
-fn print_symbols(elf: &elf::ElfFile) {
-	println!("Symbol table '.symtab' contains {} entries", elf.e_shnum);
+fn sym_size_str(size: u64) -> String {
+	match size {
+		0 ... 99999 => format!("{}", size),
+		_           => format!("{:#x}", size),
+	}
+}
+
+fn print_symbols(elf: &elf::ElfFile, file: &mut std::fs::File) -> Result<(), exefmt::elf::ElfParseError> {
+	let symtabs = try!(elf.read_symbols(file));
+	let mut cur_sym_num: u32 = 0;
+
+	for (symtab_name, symtab_shnum, symtab) in symtabs {
+		let shdr = match elf.shdrs.get(symtab_shnum as usize) {
+			Some(x) => x,
+			None    => {
+				return Err(exefmt::elf::ElfParseError::InvalidIdent);
+			},
+		}.clone();
+
+		let strtab_shnum = match shdr.sh_link {
+			0 ... 0xFFFF => shdr.sh_link as u16,
+			_            => return Err(exefmt::elf::ElfParseError::InvalidIdent),
+		};
+
+		let strtab = try!(elf.read_section_as_strtab(strtab_shnum, file));
+
+		println!("");
+		println!("Symbol table '{}' contains {} entries:", symtab_name, symtab.len());
+
+		match elf.e_ident[exefmt::elf::EI_CLASS] {
+			exefmt::elf::ELFCLASS32 => {
+				println!("   Num:    Value  Size Type    Bind   Vis      Ndx Name");
+			},
+
+			exefmt::elf::ELFCLASS64 => {
+				println!("TODO:  symtab header for ELFCLASS64");
+			},
+
+			_ => {
+				
+			},
+		}
+
+		for sym in symtab.iter() {
+			let mut symbol_name = match strtab.read_str(sym.st_name) {
+				Some(name) => name,
+				None       => format!(""),
+			};
+
+			if symbol_name.len() > 25 {
+				symbol_name.truncate(25);
+			}
+	
+			println!("{:6}: {:08x} {:>5} {:7} {:6} {:8} {:>3} {}", cur_sym_num, 
+			         sym.st_value, sym_size_str(sym.st_size), sym.type_string(elf.e_machine),
+			         sym.bind_string(), sym.visibility_string(), sym.shndx_string(),
+			         symbol_name);
+			cur_sym_num += 1;
+		}
+	}
+
+	Ok(())
 }
 
 fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), String> {
@@ -384,7 +444,10 @@ fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), Stri
 	}
 
 	if parsed_opts.syms {
-		print_symbols(&elf);
+		match print_symbols(&elf, &mut file) {
+			Ok(_) => { },
+			Err(_) => return Err(format!("ElfParseError")),
+		}
 	}
 
 	Ok(())
