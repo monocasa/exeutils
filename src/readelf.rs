@@ -356,7 +356,124 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 	}
 	println!("  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)");
 	println!("  O (extra OS processing required) o (OS specific), p (processor specific)");
+}
 
+fn elf_section_size(shdr: &exefmt::elf::ElfShdr, phdr: &exefmt::elf::ElfPhdr) -> u64 {
+	if ((shdr.sh_flags & exefmt::elf::SHF_TLS) == 0) ||
+	   (shdr.sh_type == exefmt::elf::SHT_NOBITS) ||
+	   (phdr.p_type != exefmt::elf::PT_TLS) {
+		shdr.sh_size
+	} else {
+		0
+	}
+}
+
+fn elf_is_section_in_segment(shdr: &exefmt::elf::ElfShdr, phdr: &exefmt::elf::ElfPhdr) -> bool {
+	let is_not_tls = (((shdr.sh_flags & exefmt::elf::SHF_TLS) != 0) && (phdr.p_type == exefmt::elf::PT_TLS || phdr.p_type == exefmt::elf::PT_LOAD)) 
+		|| ((shdr.sh_flags & exefmt::elf::SHF_TLS) == 0 && phdr.p_type != exefmt::elf::PT_TLS);
+
+	let section_starts_after_segment_mem_start = shdr.sh_addr >= phdr.p_vaddr;
+	let section_ends_before_segment_mem_end = shdr.sh_addr + elf_section_size(shdr, phdr) <= phdr.p_vaddr + phdr.p_memsz;
+	let section_within_mem_bounds = section_starts_after_segment_mem_start && section_ends_before_segment_mem_end;
+
+	let section_starts_after_segment_file_start = shdr.sh_offset >= phdr.p_offset;
+	let section_ends_before_segment_file_end = (shdr.sh_offset + elf_section_size(shdr, phdr)) <= (phdr.p_offset + phdr.p_filesz);
+	let section_within_file_bounds = section_starts_after_segment_file_start && section_ends_before_segment_file_end;
+
+	let is_alloc_section = (shdr.sh_flags & exefmt::elf::SHF_ALLOC) != 0;
+
+	let section_within_bounds = if is_alloc_section {
+		section_within_mem_bounds
+	} else {
+		section_within_file_bounds
+	};
+
+	(is_not_tls && section_within_bounds)
+}
+
+fn elf_is_section_in_segment_memory(shdr: &exefmt::elf::ElfShdr, phdr: &exefmt::elf::ElfPhdr) -> bool {
+	(elf_section_size(shdr, phdr) > 0) && elf_is_section_in_segment(shdr, phdr)
+}
+
+fn print_program_headers(elf: &exefmt::elf::ElfFile, parsed_opts: &ReadElfOptions) -> Result<(), exefmt::elf::ElfParseError> {
+	if !parsed_opts.file_header {
+		println!("");
+		println!("Elf file type is {}", elf.ehdr_type_string());
+		println!("Entry point {:#x}", elf.e_entry);
+		println!("There are {} program headers, starting at offset {}", elf.e_phnum, elf.e_phoff);
+	}
+
+	println!("");
+	if elf.e_phnum > 1 {
+		println!("Program Headers:");
+	}
+	else {
+		println!("Program Header:");
+	}
+
+	match elf.e_ident[exefmt::elf::EI_CLASS] {
+		exefmt::elf::ELFCLASS32 => {
+			println!("  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align");
+		},
+
+		exefmt::elf::ELFCLASS64 => {
+			println!("  Type           Offset             VirtAddr           PhysAddr");
+			println!("                 FileSiz            MemSiz              Flags  Align");
+		},
+
+		_ => {
+		},
+	}
+
+	for phdr in elf.phdrs.iter() {
+		match elf.e_ident[exefmt::elf::EI_CLASS] {
+			exefmt::elf::ELFCLASS32 => {
+				println!("  {:14} {:#08x} {:#010x} {:#010x} {:#07x} {:#07x} {} {:#x}",
+				        phdr.type_string(elf.e_machine), phdr.p_offset, phdr.p_vaddr,
+				        phdr.p_paddr, phdr.p_filesz, phdr.p_memsz, phdr.flags_string(),
+				        phdr.p_align);
+			},
+
+			exefmt::elf::ELFCLASS64 => {
+				println!("  {:14} {:#018x} {:#018x} {:#018x}",
+				         phdr.type_string(elf.e_machine), phdr.p_offset, phdr.p_vaddr,
+				         phdr.p_paddr);
+				println!("                 {:#018x} {:#018x}  {}    {:x}",
+				         phdr.p_filesz, phdr.p_memsz, phdr.flags_string(), phdr.p_align);
+			},
+
+			_ => {
+			},
+		}
+	}
+
+	if !elf.shdrs.is_empty() && !elf.strtab.data.is_empty() {
+		println!("");
+		println!(" Section to Segment mapping:");
+		println!("  Segment Sections...");
+
+		let mut cur_phnum: u16 = 0;
+		for phdr in elf.phdrs.iter() {
+			print!("   {:02}     ", cur_phnum);
+
+			for shdr in elf.shdrs.iter() {
+				if elf_is_section_in_segment_memory(shdr, phdr) {
+					let shdr_name = match elf.strtab.read_str(shdr.sh_name) {
+						Some(x) => x,
+						None    => "<corrupt>".to_string()
+					};
+
+					print!("{} ", shdr_name);
+				}
+			}
+
+			println!("");
+
+			cur_phnum += 1;
+		}
+	}
+
+	Ok(())
 }
 
 fn sym_size_str(size: u64) -> String {
@@ -455,6 +572,13 @@ fn read_file(file_name: String, parsed_opts: &ReadElfOptions) -> Result<(), Stri
 
 	if parsed_opts.section_headers {
 		print_section_headers(&elf, parsed_opts);
+	}
+
+	if parsed_opts.program_headers {
+		match print_program_headers(&elf, parsed_opts) {
+			Ok(_) => { },
+			Err(_) => return Err(format!("ElfParseError")),
+		}
 	}
 
 	if parsed_opts.syms {
