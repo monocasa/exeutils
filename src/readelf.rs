@@ -394,11 +394,10 @@ fn print_symbols(elf: &elf::ElfFile, file: &mut std::fs::File) -> Result<(), exe
 			},
 
 			exefmt::elf::ELFCLASS64 => {
-				println!("TODO:  symtab header for ELFCLASS64");
+				println!("   Num:    Value          Size Type    Bind   Vis      Ndx Name");
 			},
 
 			_ => {
-				
 			},
 		}
 
@@ -411,11 +410,26 @@ fn print_symbols(elf: &elf::ElfFile, file: &mut std::fs::File) -> Result<(), exe
 			if symbol_name.len() > 25 {
 				symbol_name.truncate(25);
 			}
-	
-			println!("{:6}: {:08x} {:>5} {:7} {:6} {:8} {:>3} {}", cur_sym_num, 
-			         sym.st_value, sym_size_str(sym.st_size), sym.type_string(elf.e_machine),
-			         sym.bind_string(), sym.visibility_string(), sym.shndx_string(),
-			         symbol_name);
+			match elf.e_ident[exefmt::elf::EI_CLASS] {
+				exefmt::elf::ELFCLASS32 => {
+					println!("{:6}: {:08x} {:>5} {:7} {:6} {:8} {:>3} {}", cur_sym_num, 
+					         sym.st_value, sym_size_str(sym.st_size),
+					         sym.type_string(elf.e_machine), sym.bind_string(),
+					         sym.visibility_string(), sym.shndx_string(),
+					         symbol_name);
+				},
+
+				exefmt::elf::ELFCLASS64 => {
+					println!("{:6}: {:016x} {:>5} {:7} {:6} {:8} {:>3} {}", cur_sym_num,
+					         sym.st_value, sym_size_str(sym.st_size),
+					         sym.type_string(elf.e_machine), sym.bind_string(),
+					         sym.visibility_string(), sym.shndx_string(),
+					         symbol_name);
+				},
+
+				_ => {
+				},
+			}
 			cur_sym_num += 1;
 		}
 	}
