@@ -325,7 +325,7 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 		match elf.e_ident[exefmt::elf::EI_CLASS] {
 			exefmt::elf::ELFCLASS32 => {
 				println!("  [{:2}] {:<17.17} {:15} {:08x} {:06x} {:06x} {:02x} {:>3} {:2} {:3} {:2}", 
-				         shnum, section_name, shdr.type_string(),
+				         shnum, section_name, shdr.type_string(elf.e_machine),
 				         shdr.sh_addr, shdr.sh_offset, shdr.sh_size, shdr.sh_entsize,
 				         build_flags_str(shdr.sh_flags), shdr.sh_link, shdr.sh_info,
 				         shdr.sh_addralign);
@@ -333,7 +333,7 @@ fn print_section_headers(elf: &elf::ElfFile, parsed_opts: &ReadElfOptions) {
 
 			exefmt::elf::ELFCLASS64 => {
 				println!("  [{:2}] {:<17.17} {:16} {:016x}  {:08x}",
-				         shnum, section_name, shdr.type_string(),
+				         shnum, section_name, shdr.type_string(elf.e_machine),
 				         shdr.sh_addr, shdr.sh_offset);
 				println!("       {:016x}  {:016x} {:>3}    {:4}   {:3}     {}",
 				         shdr.sh_size, shdr.sh_entsize, build_flags_str(shdr.sh_flags), 
