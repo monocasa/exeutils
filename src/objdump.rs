@@ -405,28 +405,36 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 	Ok(())
 }
 
+fn build_loader(bin_fmt: &BinaryFormat, file: &mut std::fs::File) -> Result<Box<exefmt::Loader>, ObjdumpError> {
+	let ldr: Box<exefmt::Loader> = match bin_fmt {
+		&BinaryFormat::NotSet => {
+			return Err(ObjdumpError::UnknownBinaryFmt);
+		},
+		&BinaryFormat::RawBinary => {
+			let ldr = try!(exefmt::binary::BinLoader::new(file));
+			Box::new(ldr)
+		},
+		&BinaryFormat::Elf => {
+			let mut ldr = exefmt::elf::ElfLoader::new(
+				try!(exefmt::elf::ElfFile::read(file)) );
+			ldr.load_from = exefmt::elf::ElfLoadFrom::SectionHeaders;
+			Box::new(ldr)
+		},
+	};
+
+	Ok(ldr)
+}
+
 fn do_objdump(file_name: &String, parsed_options: &ObjdumpOptions) -> Result<(), ObjdumpError> {
 	let mut file = try!(std::fs::File::open(file_name));
 	let filter = segment_filter_factory(parsed_options);
 
-	let (segments, binfmt_name) = match parsed_options.bin_fmt {
-		BinaryFormat::NotSet => {
-			return Err(ObjdumpError::UnknownBinaryFmt);
-		},
-		BinaryFormat::RawBinary => {
-			let ldr = try!(exefmt::binary::BinLoader::new(&mut file));
-			(try!(ldr.get_segments(&*filter, &mut file)), ldr.fmt_str())
-		},
-		BinaryFormat::Elf => {
-			let mut ldr = exefmt::elf::ElfLoader::new(
-				try!(exefmt::elf::ElfFile::read(&mut file)) );
-			ldr.load_from = exefmt::elf::ElfLoadFrom::SectionHeaders;
-			(try!(ldr.get_segments(&*filter, &mut file)), ldr.fmt_str())
-		},
-	};
+	let loader = try!(build_loader(&parsed_options.bin_fmt, &mut file));
+
+	let segments = try!(loader.get_segments(&*filter, &mut file));
 
 	println!("");
-	println!("{}:     file format {}", file_name, binfmt_name);
+	println!("{}:     file format {}", file_name, loader.fmt_str());
 	println!("");
 
 	for (segment_meta, data) in segments {
