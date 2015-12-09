@@ -15,7 +15,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "exefmt"
 version = "0.1.0"
-source = "git+https://github.com/monocasa/exefmt.git#10045adf0c2b17cad06aeb429bb5c3671bb70a2a"
+source = "git+https://github.com/monocasa/exefmt.git#468d498baf5f36ef48cf7b2e3343ce95bf34f26b"
 dependencies = [
  "byteorder 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -28,5 +28,5 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "opcode"
 version = "0.1.0"
-source = "git+https://github.com/monocasa/opcode.git#41dc285d64d01395b4bbfb546b158829f334454d"
+source = "git+https://github.com/monocasa/opcode.git#f00e63915dfd1a4f56ecf3c2d633dd119e8fc114"
 

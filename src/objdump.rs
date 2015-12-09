@@ -208,6 +208,7 @@ fn parse_opts(args: &Vec<String>, opts: &mut Options) -> ParseResult {
 	if matches.opt_present("machine") {
 		parsed_opts.arch = match matches.opt_str("machine").unwrap().as_ref() {
 			"chip8" => Some(opcode::Arch::Chip8),
+			"mips"  => Some(opcode::Arch::Mips),
 			"ppc"   => Some(opcode::Arch::PowerPC),
 			_ => return Err(ParseError::UnknownArgument("machine", matches.opt_str("machine").unwrap())),
 		};
@@ -287,6 +288,7 @@ fn disassembler_factory(arch_type: &Option<opcode::Arch>) -> Box<opcode::Disasse
 		&Some(ref arch) => {
 			match arch {
 				&opcode::Arch::Chip8   => Box::new(opcode::chip8::Chip8Disasm),
+				&opcode::Arch::Mips    => Box::new(opcode::mips::MipsDisasm),
 				&opcode::Arch::PowerPC => Box::new(opcode::ppc::PpcDisasm),
 				_ => panic!("Unknown machine"),
 			}
@@ -374,7 +376,7 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 		let cur_slice = &data.as_slice()[consumed .. data.len()];
 		let count = count_zeros(cur_slice);
 
-		if count >= 8 {
+		if count > 8 {
 			println!("\t...");
 			consumed += count;
 			residue -= count;
