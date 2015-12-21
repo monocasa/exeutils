@@ -362,6 +362,8 @@ fn construct_data_pseudoop_string(buf: &[u8], num_bytes_per_element: usize, num_
 fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_options: &ObjdumpOptions) -> Result<(), std::io::Error> {
 	let mut residue: usize = segment_meta.file_size as usize;
 	let mut consumed: usize = 0;
+	let mut force_disasm_of_next = false;
+
 	let base = segment_meta.load_base + parsed_options.vma_offset;
 	let disassembler = disassembler_factory(&parsed_options.arch);
 	let bytes_per_element = disassembler.bytes_per_unit() as usize;
@@ -376,18 +378,18 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 		let cur_slice = &data.as_slice()[consumed .. data.len()];
 		let count = count_zeros(cur_slice);
 
-		if count > 8 {
+		if count > 8 && !force_disasm_of_next{
 			println!("\t...");
 			consumed += count;
 			residue -= count;
 			continue;
 		}
 
-		let (dis_text, num_bytes) = match disassembler.disassemble(base + (consumed as u64), cur_slice) {
-			Ok((dis_text, num_bytes)) => (dis_text, num_bytes),
+		let (dis_text, num_bytes, next_should_be_disasm) = match disassembler.disassemble(base + (consumed as u64), cur_slice) {
+			Ok((dis_text, num_bytes, next_should_be_disasm)) => (dis_text, num_bytes, next_should_be_disasm),
 			Err(opcode::DisError::Unknown{ num_bytes }) => 
 					(construct_data_pseudoop_string(cur_slice, bytes_per_element, num_bytes / bytes_per_element).unwrap(),
-							num_bytes),
+							num_bytes, false),
 			Err(opcode::DisError::MemOverflow) => {
 				println!("{:8x}:\t{:02x}       .byte 0x{:02x}", base + (consumed as u64), data[consumed], data[consumed]);
 				consumed += 1;
@@ -398,6 +400,9 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 				return Err(Error::new(ErrorKind::Other, "Diassembly error"));
 			},
 		};
+
+		force_disasm_of_next = next_should_be_disasm;
+
 		let byte_text = construct_data_string(cur_slice, bytes_per_element, num_bytes / bytes_per_element).unwrap();
 		println!("{:8x}:\t{}\t{}", base + (consumed as u64), byte_text, dis_text);
 		consumed += num_bytes;
