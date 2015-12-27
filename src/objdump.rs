@@ -378,7 +378,7 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 		let cur_slice = &data.as_slice()[consumed .. data.len()];
 		let count = count_zeros(cur_slice);
 
-		if count > 8 && !force_disasm_of_next{
+		if count >= 8 && !force_disasm_of_next{
 			println!("\t...");
 			consumed += count;
 			residue -= count;
