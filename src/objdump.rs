@@ -369,7 +369,7 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 	let bytes_per_element = disassembler.bytes_per_unit() as usize;
 
 	println!("");
-	println!("Disassembly of section {}", segment_meta.name);
+	println!("Disassembly of section {}:", segment_meta.name);
 
 	println!("");
 	println!("{:08x} <{}>:", base, segment_meta.name);
