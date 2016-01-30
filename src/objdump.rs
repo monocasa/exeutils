@@ -1,5 +1,3 @@
-#![feature(convert)]
-
 extern crate exefmt;
 extern crate getopts;
 extern crate opcode;
