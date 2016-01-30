@@ -8,10 +8,6 @@ use std::io::{Error, ErrorKind};
 
 use exefmt::Loader;
 
-use opcode::chip8::Chip8Disasm;
-use opcode::ppc::PpcDisasm;
-use opcode::Arch;
-
 #[derive(PartialEq)]
 enum BinaryFormat {
 	NotSet,
