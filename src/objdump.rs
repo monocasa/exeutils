@@ -288,7 +288,7 @@ fn disassembler_factory(arch_type: &Option<opcode::Arch>) -> Box<opcode::Disasse
 		&Some(ref arch) => {
 			match arch {
 				&opcode::Arch::Chip8   => Box::new(opcode::chip8::Chip8Disasm),
-				&opcode::Arch::Mips    => Box::new(opcode::mips::MipsDisasm),
+				&opcode::Arch::Mips    => Box::new(opcode::mips::MipsDisasm { big_endian: true }),
 				&opcode::Arch::PowerPC => Box::new(opcode::ppc::PpcDisasm),
 				_ => panic!("Unknown machine"),
 			}
