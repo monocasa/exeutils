@@ -387,10 +387,12 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, endianness: &exefmt::Endi
 		let cur_slice = &data.as_slice()[consumed .. data.len()];
 		let count = count_zeros(cur_slice);
 
+		let aligned_count = count - (count % bytes_per_element);
+
 		if count >= 8 && !force_disasm_of_next{
 			println!("\t...");
-			consumed += count;
-			residue -= count;
+			consumed += aligned_count;
+			residue -= aligned_count;
 			continue;
 		}
 
@@ -405,7 +407,8 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, endianness: &exefmt::Endi
 				residue -= 1;
 				continue;
 			},
-			Err(_) => {
+			Err(err) => {
+				println!("Err: {:?} {:x} {:x} {:x}", err, base, consumed, count );
 				return Err(Error::new(ErrorKind::Other, "Diassembly error"));
 			},
 		};
