@@ -277,12 +277,16 @@ fn segment_filter_factory(parsed_options: &ObjdumpOptions) -> Box<Fn(&exefmt::Se
 	}
 }
 
-fn disassembler_factory(arch_type: &Option<opcode::Arch>) -> Box<opcode::Disassembler> {
+fn disassembler_factory(arch_type: &Option<opcode::Arch>, endianness: &exefmt::Endianness) -> Box<opcode::Disassembler> {
 	match arch_type {
 		&Some(ref arch) => {
 			match arch {
 				&opcode::Arch::Chip8   => Box::new(opcode::chip8::Chip8Disasm),
-				&opcode::Arch::Mips    => Box::new(opcode::mips::MipsDisasm { big_endian: true }),
+				&opcode::Arch::Mips    => {
+					Box::new(opcode::mips::MipsDisasm {
+						big_endian: endianness == &exefmt::Endianness::Big,
+					})
+				},
 				&opcode::Arch::PowerPC => Box::new(opcode::ppc::PpcDisasm),
 				_ => panic!("Unknown machine"),
 			}
@@ -307,7 +311,7 @@ fn count_zeros(buf: &[u8]) -> usize {
 	return count;
 }
 
-fn construct_data_string(buf: &[u8], num_bytes_per_element: usize, num_elements: usize) -> Option<String> {
+fn construct_data_string(buf: &[u8], num_bytes_per_element: usize, num_elements: usize, endianness: &exefmt::Endianness) -> Option<String> {
 	if buf.len() < (num_bytes_per_element * num_elements) {
 		return None;
 	}
@@ -316,8 +320,19 @@ fn construct_data_string(buf: &[u8], num_bytes_per_element: usize, num_elements:
 
 	for cur_element in 0..num_elements {
 		for cur_byte in 0..num_bytes_per_element {
+			let cur_element_offset = (cur_element * num_bytes_per_element) as usize;
+
+			let cur_byte_value = match *endianness {
+				exefmt::Endianness::Big => {
+					buf[cur_element_offset + cur_byte]
+				},
+				exefmt::Endianness::Little => {
+					buf[cur_element_offset + num_bytes_per_element - cur_byte - 1]
+				},
+			};
+
 			ret = format!("{}{:02x}{}", ret,
-					buf[((cur_element * num_bytes_per_element) + cur_byte) as usize],
+					cur_byte_value,
 					if cur_byte == (num_bytes_per_element - 1) { " " } else { "" });
 		}
 	}
@@ -353,13 +368,13 @@ fn construct_data_pseudoop_string(buf: &[u8], num_bytes_per_element: usize, num_
 	Some(ret)
 }
 
-fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_options: &ObjdumpOptions) -> Result<(), std::io::Error> {
+fn disassemble_segment(segment_meta: &exefmt::Segment, endianness: &exefmt::Endianness, data: &Vec<u8>, parsed_options: &ObjdumpOptions) -> Result<(), std::io::Error> {
 	let mut residue: usize = segment_meta.file_size as usize;
 	let mut consumed: usize = 0;
 	let mut force_disasm_of_next = false;
 
 	let base = segment_meta.load_base + parsed_options.vma_offset;
-	let disassembler = disassembler_factory(&parsed_options.arch);
+	let disassembler = disassembler_factory(&parsed_options.arch, endianness);
 	let bytes_per_element = disassembler.bytes_per_unit() as usize;
 
 	println!("");
@@ -397,7 +412,7 @@ fn disassemble_segment(segment_meta: &exefmt::Segment, data: &Vec<u8>, parsed_op
 
 		force_disasm_of_next = next_should_be_disasm;
 
-		let byte_text = construct_data_string(cur_slice, bytes_per_element, num_bytes / bytes_per_element).unwrap();
+		let byte_text = construct_data_string(cur_slice, bytes_per_element, num_bytes / bytes_per_element, endianness).unwrap();
 		println!("{:8x}:\t{}\t{}", base + (consumed as u64), byte_text, dis_text);
 		consumed += num_bytes;
 		residue -= num_bytes;
@@ -434,6 +449,11 @@ fn do_objdump(file_name: &String, parsed_options: &ObjdumpOptions) -> Result<(),
 
 	let segments = try!(loader.get_segments(&*filter, &mut file));
 
+	let endianness = match loader.endianness() {
+		Some(endian) => endian,
+		None         => exefmt::Endianness::Little,
+	};
+
 	println!("");
 	println!("{}:     file format {}", file_name, loader.fmt_str());
 	println!("");
@@ -443,11 +463,11 @@ fn do_objdump(file_name: &String, parsed_options: &ObjdumpOptions) -> Result<(),
 			Disassemble::None => {},
 			Disassemble::Executable => { 
 				if segment_meta.executable {
-					try!(disassemble_segment(&segment_meta, &data, &parsed_options));
+					try!(disassemble_segment(&segment_meta, &endianness, &data, &parsed_options));
 				}
 			},
 			Disassemble::All => {
-				try!(disassemble_segment(&segment_meta, &data, &parsed_options));
+				try!(disassemble_segment(&segment_meta, &endianness, &data, &parsed_options));
 			},
 		}
 	}
